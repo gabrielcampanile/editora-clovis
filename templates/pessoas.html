@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Gerenciamento de Pessoas</h2>
+
+<button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addPessoaModal">
+    Adicionar Pessoa
+</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Código</th>
+            <th>CPF</th>
+            <th>Nome</th>
+            <th>Data Nascimento</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody id="pessoasTable">
+    </tbody>
+</table>
+
+<!-- Modal Adicionar Pessoa -->
+<div class="modal fade" id="addPessoaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Adicionar Pessoa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addPessoaForm">
+                    <div class="mb-3">
+                        <label class="form-label">Código</label>
+                        <input type="number" class="form-control" name="cod_pessoa" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">CPF</label>
+                        <input type="text" class="form-control" name="CPF" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nome</label>
+                        <input type="text" class="form-control" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Data Nascimento</label>
+                        <input type="date" class="form-control" name="data_nasc" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadPessoas() {
+    fetch('/pessoa')
+        .then(response => response.json())
+        .then(pessoas => {
+            const tbody = document.getElementById('pessoasTable');
+            tbody.innerHTML = '';
+            pessoas.forEach(pessoa => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${pessoa.cod_pessoa}</td>
+                        <td>${pessoa.CPF}</td>
+                        <td>${pessoa.nome}</td>
+                        <td>${pessoa.data_nasc}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deletePessoa(${pessoa.cod_pessoa})">Excluir</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+}
+
+document.getElementById('addPessoaForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    fetch('/pessoa', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert('Pessoa adicionada com sucesso!');
+        loadPessoas();
+        bootstrap.Modal.getInstance(document.getElementById('addPessoaModal')).hide();
+    })
+    .catch(error => alert('Erro ao adicionar pessoa'));
+});
+
+function deletePessoa(cod_pessoa) {
+    if (confirm('Tem certeza que deseja excluir esta pessoa?')) {
+        fetch(`/pessoa/${cod_pessoa}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Pessoa excluída com sucesso!');
+            loadPessoas();
+        })
+        .catch(error => alert('Erro ao excluir pessoa'));
+    }
+}
+
+loadPessoas();
+</script>
+{% endblock %} 

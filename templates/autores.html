@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Gerenciamento de Autores</h2>
+
+<button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addAutorModal">
+    Adicionar Autor
+</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Código Autor</th>
+            <th>Código Pessoa</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody id="autoresTable">
+    </tbody>
+</table>
+
+<!-- Modal Adicionar Autor -->
+<div class="modal fade" id="addAutorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Adicionar Autor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addAutorForm">
+                    <div class="mb-3">
+                        <label class="form-label">Código Autor</label>
+                        <input type="number" class="form-control" name="cod_autor" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Código Pessoa</label>
+                        <input type="number" class="form-control" name="cod_pessoa" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadAutores() {
+    fetch('/autor')
+        .then(response => response.json())
+        .then(autores => {
+            const tbody = document.getElementById('autoresTable');
+            tbody.innerHTML = '';
+            autores.forEach(autor => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${autor.cod_autor}</td>
+                        <td>${autor.cod_pessoa}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteAutor(${autor.cod_autor}, ${autor.cod_pessoa})">Excluir</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+}
+
+document.getElementById('addAutorForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    fetch('/autor', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert('Autor adicionado com sucesso!');
+        loadAutores();
+        bootstrap.Modal.getInstance(document.getElementById('addAutorModal')).hide();
+    })
+    .catch(error => alert('Erro ao adicionar autor'));
+});
+
+function deleteAutor(cod_autor, cod_pessoa) {
+    if (confirm('Tem certeza que deseja excluir este autor?')) {
+        fetch(`/autor/${cod_autor}/${cod_pessoa}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Autor excluído com sucesso!');
+            loadAutores();
+        })
+        .catch(error => alert('Erro ao excluir autor'));
+    }
+}
+
+loadAutores();
+</script>
+{% endblock %} 
