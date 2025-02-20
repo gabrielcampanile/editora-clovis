@@ -54,6 +54,36 @@
     </div>
 </div>
 
+<!-- Adicione este modal para edição -->
+<div class="modal fade" id="editPessoaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Pessoa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPessoaForm">
+                    <input type="hidden" name="cod_pessoa" id="editCodPessoa">
+                    <div class="mb-3">
+                        <label class="form-label">CPF</label>
+                        <input type="text" class="form-control" name="CPF" id="editCPF" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nome</label>
+                        <input type="text" class="form-control" name="nome" id="editNome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Data Nascimento</label>
+                        <input type="date" class="form-control" name="data_nasc" id="editDataNasc" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function loadPessoas() {
     fetch('/pessoa')
@@ -69,6 +99,7 @@ function loadPessoas() {
                         <td>${pessoa.nome}</td>
                         <td>${pessoa.data_nasc}</td>
                         <td>
+                            <button class="btn btn-sm btn-primary" onclick="editPessoa(${pessoa.cod_pessoa})">Editar</button>
                             <button class="btn btn-sm btn-danger" onclick="deletePessoa(${pessoa.cod_pessoa})">Excluir</button>
                         </td>
                     </tr>
@@ -111,6 +142,40 @@ function deletePessoa(cod_pessoa) {
         .catch(error => alert('Erro ao excluir pessoa'));
     }
 }
+
+function editPessoa(cod_pessoa) {
+    fetch(`/pessoa/${cod_pessoa}`)
+        .then(response => response.json())
+        .then(pessoa => {
+            document.getElementById('editCodPessoa').value = pessoa.cod_pessoa;
+            document.getElementById('editCPF').value = pessoa.CPF;
+            document.getElementById('editNome').value = pessoa.nome;
+            document.getElementById('editDataNasc').value = pessoa.data_nasc;
+            new bootstrap.Modal(document.getElementById('editPessoaModal')).show();
+        });
+}
+
+document.getElementById('editPessoaForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    const cod_pessoa = data.cod_pessoa;
+    
+    fetch(`/pessoa/${cod_pessoa}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert('Pessoa atualizada com sucesso!');
+        loadPessoas();
+        bootstrap.Modal.getInstance(document.getElementById('editPessoaModal')).hide();
+    })
+    .catch(error => alert('Erro ao atualizar pessoa'));
+});
 
 loadPessoas();
 </script>

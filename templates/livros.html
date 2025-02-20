@@ -42,6 +42,56 @@
                         <label class="form-label">Gênero</label>
                         <input type="text" class="form-control" name="genero" required>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Autores</label>
+                        <select class="form-control" name="autores" multiple>
+                        </select>
+                        <small class="text-muted">Pressione Ctrl para selecionar múltiplos autores</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Revisores</label>
+                        <select class="form-control" name="revisores" multiple>
+                        </select>
+                        <small class="text-muted">Pressione Ctrl para selecionar múltiplos revisores</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Livro -->
+<div class="modal fade" id="editLivroModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Livro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editLivroForm">
+                    <input type="hidden" name="cod_livro" id="editCodLivro">
+                    <div class="mb-3">
+                        <label class="form-label">Título</label>
+                        <input type="text" class="form-control" name="titulo" id="editTitulo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Gênero</label>
+                        <input type="text" class="form-control" name="genero" id="editGenero" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Autores</label>
+                        <select class="form-control" name="autores" id="editAutores" multiple>
+                        </select>
+                        <small class="text-muted">Pressione Ctrl para selecionar múltiplos autores</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Revisores</label>
+                        <select class="form-control" name="revisores" id="editRevisores" multiple>
+                        </select>
+                        <small class="text-muted">Pressione Ctrl para selecionar múltiplos revisores</small>
+                    </div>
                     <button type="submit" class="btn btn-primary">Salvar</button>
                 </form>
             </div>
@@ -50,12 +100,69 @@
 </div>
 
 <script>
+function loadAutores() {
+    return fetch('/autor')
+        .then(response => response.json())
+        .then(autores => {
+            const promises = autores.map(autor => 
+                fetch(`/pessoa/${autor.cod_pessoa}`)
+                    .then(response => response.json())
+                    .then(pessoa => ({
+                        ...autor,
+                        nome: pessoa.nome
+                    }))
+            );
+            return Promise.all(promises);
+        })
+        .then(autoresComNomes => {
+            const selects = document.querySelectorAll('select[name="autores"]');
+            selects.forEach(select => {
+                select.innerHTML = '';
+                autoresComNomes.forEach(autor => {
+                    select.innerHTML += `
+                        <option value="${autor.cod_autor}">${autor.nome} (${autor.cod_autor})</option>
+                    `;
+                });
+            });
+            return autoresComNomes;
+        });
+}
+
+function loadRevisores() {
+    return fetch('/revisor')
+        .then(response => response.json())
+        .then(revisores => {
+            const promises = revisores.map(revisor => 
+                fetch(`/pessoa/${revisor.cod_pessoa}`)
+                    .then(response => response.json())
+                    .then(pessoa => ({
+                        ...revisor,
+                        nome: pessoa.nome
+                    }))
+            );
+            return Promise.all(promises);
+        })
+        .then(revisoresComNomes => {
+            const selects = document.querySelectorAll('select[name="revisores"]');
+            selects.forEach(select => {
+                select.innerHTML = '';
+                revisoresComNomes.forEach(revisor => {
+                    select.innerHTML += `
+                        <option value="${revisor.cod_revisor}">${revisor.nome} (${revisor.cod_revisor})</option>
+                    `;
+                });
+            });
+            return revisoresComNomes;
+        });
+}
+
 function loadLivros() {
     fetch('/livro')
         .then(response => response.json())
         .then(livros => {
             const tbody = document.getElementById('livrosTable');
             tbody.innerHTML = '';
+            
             livros.forEach(livro => {
                 tbody.innerHTML += `
                     <tr>
@@ -63,6 +170,7 @@ function loadLivros() {
                         <td>${livro.titulo}</td>
                         <td>${livro.genero}</td>
                         <td>
+                            <button class="btn btn-sm btn-primary" onclick="editLivro(${livro.cod_livro})">Editar</button>
                             <button class="btn btn-sm btn-danger" onclick="deleteLivro(${livro.cod_livro})">Excluir</button>
                         </td>
                     </tr>
@@ -76,6 +184,11 @@ document.getElementById('addLivroForm').addEventListener('submit', function(e) {
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
     
+    // Converter valores múltiplos dos selects
+    data.autores = Array.from(e.target.autores.selectedOptions).map(opt => parseInt(opt.value));
+    data.revisores = Array.from(e.target.revisores.selectedOptions).map(opt => parseInt(opt.value));
+    data.cod_livro = parseInt(data.cod_livro);
+    
     fetch('/livro', {
         method: 'POST',
         headers: {
@@ -83,13 +196,75 @@ document.getElementById('addLivroForm').addEventListener('submit', function(e) {
         },
         body: JSON.stringify(data)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error('Erro ao adicionar livro');
+        return response.json();
+    })
     .then(data => {
         alert('Livro adicionado com sucesso!');
         loadLivros();
         bootstrap.Modal.getInstance(document.getElementById('addLivroModal')).hide();
     })
     .catch(error => alert('Erro ao adicionar livro'));
+});
+
+function editLivro(cod_livro) {
+    Promise.all([
+        fetch(`/livro/${cod_livro}`).then(r => r.json()),
+        loadAutores(),
+        loadRevisores()
+    ]).then(([livro, autores, revisores]) => {
+        document.getElementById('editCodLivro').value = livro.cod_livro;
+        document.getElementById('editTitulo').value = livro.titulo;
+        document.getElementById('editGenero').value = livro.genero;
+        
+        // Carregar autores e revisores selecionados
+        fetch(`/livro/${cod_livro}/autores`)
+            .then(r => r.json())
+            .then(autoresDoLivro => {
+                const autoresSelect = document.getElementById('editAutores');
+                Array.from(autoresSelect.options).forEach(opt => {
+                    opt.selected = autoresDoLivro.some(a => a.cod_autor === parseInt(opt.value));
+                });
+            });
+            
+        fetch(`/livro/${cod_livro}/revisores`)
+            .then(r => r.json())
+            .then(revisoresDoLivro => {
+                const revisoresSelect = document.getElementById('editRevisores');
+                Array.from(revisoresSelect.options).forEach(opt => {
+                    opt.selected = revisoresDoLivro.some(r => r.cod_revisor === parseInt(opt.value));
+                });
+            });
+            
+        new bootstrap.Modal(document.getElementById('editLivroModal')).show();
+    });
+}
+
+document.getElementById('editLivroForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    const cod_livro = data.cod_livro;
+    
+    // Converter valores múltiplos dos selects
+    data.autores = Array.from(e.target.autores.selectedOptions).map(opt => parseInt(opt.value));
+    data.revisores = Array.from(e.target.revisores.selectedOptions).map(opt => parseInt(opt.value));
+    
+    fetch(`/livro/${cod_livro}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert('Livro atualizado com sucesso!');
+        loadLivros();
+        bootstrap.Modal.getInstance(document.getElementById('editLivroModal')).hide();
+    })
+    .catch(error => alert('Erro ao atualizar livro'));
 });
 
 function deleteLivro(cod_livro) {
@@ -105,6 +280,12 @@ function deleteLivro(cod_livro) {
         .catch(error => alert('Erro ao excluir livro'));
     }
 }
+
+// Carregar dados quando o modal for aberto
+document.getElementById('addLivroModal').addEventListener('show.bs.modal', function (event) {
+    loadAutores();
+    loadRevisores();
+});
 
 loadLivros();
 </script>

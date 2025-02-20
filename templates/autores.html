@@ -12,6 +12,7 @@
         <tr>
             <th>Código Autor</th>
             <th>Código Pessoa</th>
+            <th>Nome da Pessoa</th>
             <th>Ações</th>
         </tr>
     </thead>
@@ -34,8 +35,33 @@
                         <input type="number" class="form-control" name="cod_autor" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Código Pessoa</label>
-                        <input type="number" class="form-control" name="cod_pessoa" required>
+                        <label class="form-label">Pessoa</label>
+                        <select class="form-control" name="cod_pessoa" required>
+                            <option value="">Selecione uma pessoa</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Adicione este modal para edição -->
+<div class="modal fade" id="editAutorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Autor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editAutorForm">
+                    <input type="hidden" name="cod_autor" id="editCodAutor">
+                    <div class="mb-3">
+                        <label class="form-label">Pessoa</label>
+                        <select class="form-control" name="cod_pessoa" id="editCodPessoa" required>
+                        </select>
                     </div>
                     <button type="submit" class="btn btn-primary">Salvar</button>
                 </form>
@@ -45,22 +71,45 @@
 </div>
 
 <script>
+// Carregar pessoas disponíveis
+function loadPessoas() {
+    fetch('/pessoa')
+        .then(response => response.json())
+        .then(pessoas => {
+            const select = document.querySelector('select[name="cod_pessoa"]');
+            select.innerHTML = '<option value="">Selecione uma pessoa</option>';
+            pessoas.forEach(pessoa => {
+                select.innerHTML += `
+                    <option value="${pessoa.cod_pessoa}">${pessoa.nome} (${pessoa.cod_pessoa})</option>
+                `;
+            });
+        });
+}
+
 function loadAutores() {
     fetch('/autor')
         .then(response => response.json())
         .then(autores => {
             const tbody = document.getElementById('autoresTable');
             tbody.innerHTML = '';
+            
+            // Para cada autor, buscar o nome da pessoa
             autores.forEach(autor => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${autor.cod_autor}</td>
-                        <td>${autor.cod_pessoa}</td>
-                        <td>
-                            <button class="btn btn-sm btn-danger" onclick="deleteAutor(${autor.cod_autor}, ${autor.cod_pessoa})">Excluir</button>
-                        </td>
-                    </tr>
-                `;
+                fetch(`/pessoa/${autor.cod_pessoa}`)
+                    .then(response => response.json())
+                    .then(pessoa => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${autor.cod_autor}</td>
+                                <td>${autor.cod_pessoa}</td>
+                                <td>${pessoa.nome || 'N/A'}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick="editAutor(${autor.cod_autor}, ${autor.cod_pessoa})">Editar</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteAutor(${autor.cod_autor}, ${autor.cod_pessoa})">Excluir</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
             });
         });
 }
@@ -70,6 +119,10 @@ document.getElementById('addAutorForm').addEventListener('submit', function(e) {
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
     
+    // Converter para números
+    data.cod_autor = parseInt(data.cod_autor);
+    data.cod_pessoa = parseInt(data.cod_pessoa);
+    
     fetch('/autor', {
         method: 'POST',
         headers: {
@@ -77,13 +130,20 @@ document.getElementById('addAutorForm').addEventListener('submit', function(e) {
         },
         body: JSON.stringify(data)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Erro ao adicionar autor');
+        }
+        return response.json();
+    })
     .then(data => {
         alert('Autor adicionado com sucesso!');
         loadAutores();
         bootstrap.Modal.getInstance(document.getElementById('addAutorModal')).hide();
     })
-    .catch(error => alert('Erro ao adicionar autor'));
+    .catch(error => {
+        alert('Erro ao adicionar autor. Certifique-se de que a pessoa existe no sistema.');
+    });
 });
 
 function deleteAutor(cod_autor, cod_pessoa) {
@@ -99,6 +159,42 @@ function deleteAutor(cod_autor, cod_pessoa) {
         .catch(error => alert('Erro ao excluir autor'));
     }
 }
+
+// Carregar pessoas quando o modal for aberto
+document.getElementById('addAutorModal').addEventListener('show.bs.modal', function (event) {
+    loadPessoas();
+});
+
+function editAutor(cod_autor, cod_pessoa) {
+    loadPessoas().then(() => {
+        document.getElementById('editCodAutor').value = cod_autor;
+        document.getElementById('editCodPessoa').value = cod_pessoa;
+        new bootstrap.Modal(document.getElementById('editAutorModal')).show();
+    });
+}
+
+document.getElementById('editAutorForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    const cod_autor = data.cod_autor;
+    const cod_pessoa = data.cod_pessoa;
+    
+    fetch(`/autor/${cod_autor}/${cod_pessoa}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert('Autor atualizado com sucesso!');
+        loadAutores();
+        bootstrap.Modal.getInstance(document.getElementById('editAutorModal')).hide();
+    })
+    .catch(error => alert('Erro ao atualizar autor'));
+});
 
 loadAutores();
 </script>

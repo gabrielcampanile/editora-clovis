@@ -3,11 +3,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import date
 from modelos_editoraClovis import Pessoa, Revisor, Autor, Livro, Escreve, Revisa
+from config import Config
 
 app = Blueprint('api', __name__)
 
 # Configuração do banco de dados
-engine = create_engine("mysql+pymysql://JoaoVitor:JOAOVITOR15@localhost:3388/EditoraClovisDeBarro")
+engine = create_engine(Config.SQLALCHEMY_DATABASE_URI)
 Session = sessionmaker(bind=engine)
 
 #############################
@@ -35,7 +36,7 @@ def add_pessoa():
 @app.route('/pessoa', methods=['GET'])
 def get_pessoas():
     session = Session()
-    pessoas = session.query(Pessoa).all()
+    pessoas = session.query(Pessoa).order_by(Pessoa.cod_pessoa).all()
     session.close()
 
     return jsonify([{
@@ -75,14 +76,57 @@ def delete_pessoa(cod_pessoa):
     session.close()
     return jsonify({'message': 'Pessoa não encontrada!'}), 404
 
+@app.route('/pessoa/<int:cod_pessoa>', methods=['GET'])
+def get_pessoa(cod_pessoa):
+    session = Session()
+    pessoa = session.query(Pessoa).filter_by(cod_pessoa=cod_pessoa).first()
+    session.close()
+    
+    if pessoa:
+        return jsonify({
+            'cod_pessoa': pessoa.cod_pessoa,
+            'CPF': pessoa.CPF,
+            'nome': pessoa.nome,
+            'data_nasc': pessoa.data_nasc.isoformat()
+        })
+    return jsonify({'message': 'Pessoa não encontrada'}), 404
+
 #############################
 # REVISOR
 #############################
+
+@app.route('/revisor', methods=['GET'])
+def get_revisores():
+    session = Session()
+    revisores = session.query(Revisor).order_by(Revisor.cod_revisor).all()
+    session.close()
+    return jsonify([{
+        'cod_revisor': revisor.cod_revisor,
+        'cod_pessoa': revisor.cod_pessoa,
+        'especialidade': revisor.especialidade,
+        'salario': float(revisor.salario),
+        'data_contrato': revisor.data_contrato.isoformat()
+    } for revisor in revisores])
+
+@app.route('/revisor/<int:cod_revisor>', methods=['GET'])
+def get_revisor(cod_revisor):
+    session = Session()
+    revisor = session.query(Revisor).filter_by(cod_revisor=cod_revisor).first()
+    if revisor:
+        return jsonify({
+            'cod_revisor': revisor.cod_revisor,
+            'cod_pessoa': revisor.cod_pessoa,
+            'especialidade': revisor.especialidade,
+            'salario': float(revisor.salario),
+            'data_contrato': revisor.data_contrato.isoformat()
+        })
+    return jsonify({'message': 'Revisor não encontrado'}), 404
 
 @app.route('/revisor', methods=['POST'])
 def add_revisor():
     session = Session()
     data = request.get_json()
+    
     novo_revisor = Revisor(
         cod_revisor=data['cod_revisor'],
         cod_pessoa=data['cod_pessoa'],
@@ -90,108 +134,231 @@ def add_revisor():
         salario=data['salario'],
         data_contrato=data['data_contrato']
     )
-    session.add(novo_revisor)
-    session.commit()
-    return jsonify({'message': 'Revisor criado com sucesso!'}), 201
+    
+    try:
+        session.add(novo_revisor)
+        session.commit()
+        return jsonify({'message': 'Revisor adicionado com sucesso!'}), 201
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        session.close()
 
-# READ (Ler Revisor)
-@app.route('/revisor/<int:id>', methods=['GET'])
-def get_revisor(id):
-    session = Session()
-    revisor = session.query(Revisor).filter_by(cod_revisor=id).first()
-    if revisor:
-        return jsonify({
-            'cod_revisor': revisor.cod_revisor,
-            'cod_pessoa': revisor.cod_pessoa,
-            'especialidade': revisor.especialidade,
-            'salario': revisor.salario,
-            'data_contrato': revisor.data_contrato
-        })
-    return jsonify({'message': 'Revisor não encontrado'}), 404
-
-# UPDATE (Atualizar Revisor)
-@app.route('/revisor/<int:id>', methods=['PUT'])
-def update_revisor(id):
+@app.route('/revisor/<int:cod_revisor>', methods=['PUT'])
+def update_revisor(cod_revisor):
     session = Session()
     data = request.get_json()
-    revisor = session.query(Revisor).filter_by(cod_revisor=id).first()
+    revisor = session.query(Revisor).filter_by(cod_revisor=cod_revisor).first()
+    
     if revisor:
-        revisor.cod_pessoa = data['cod_pessoa']
-        revisor.especialidade = data['especialidade']
-        revisor.salario = data['salario']
-        revisor.data_contrato = data['data_contrato']
-        session.commit()
-        return jsonify({'message': 'Revisor atualizado com sucesso!'})
+        try:
+            revisor.cod_pessoa = data['cod_pessoa']
+            revisor.especialidade = data['especialidade']
+            revisor.salario = data['salario']
+            revisor.data_contrato = data['data_contrato']
+            session.commit()
+            return jsonify({'message': 'Revisor atualizado com sucesso!'})
+        except Exception as e:
+            session.rollback()
+            return jsonify({'error': str(e)}), 400
+        finally:
+            session.close()
+    
+    session.close()
     return jsonify({'message': 'Revisor não encontrado'}), 404
 
-# DELETE (Deletar Revisor)
-@app.route('/revisor/<int:id>', methods=['DELETE'])
-def delete_revisor(id):
+@app.route('/revisor/<int:cod_revisor>', methods=['DELETE'])
+def delete_revisor(cod_revisor):
     session = Session()
-    revisor = session.query(Revisor).filter_by(cod_revisor=id).first()
+    revisor = session.query(Revisor).filter_by(cod_revisor=cod_revisor).first()
+    
     if revisor:
-        session.delete(revisor)
-        session.commit()
-        return jsonify({'message': 'Revisor deletado com sucesso!'})
+        try:
+            session.delete(revisor)
+            session.commit()
+            return jsonify({'message': 'Revisor excluído com sucesso!'})
+        except Exception as e:
+            session.rollback()
+            return jsonify({'error': str(e)}), 400
+        finally:
+            session.close()
+    
+    session.close()
     return jsonify({'message': 'Revisor não encontrado'}), 404
-
 
 #############################
 # LIVRO
 #############################
 
+@app.route('/livro', methods=['GET'])
+def get_livros():
+    session = Session()
+    livros = session.query(Livro).order_by(Livro.cod_livro).all()
+    session.close()
+    return jsonify([{
+        'cod_livro': livro.cod_livro,
+        'titulo': livro.titulo,
+        'genero': livro.genero
+    } for livro in livros])
 
-# CREATE (Adicionar Livro)
+@app.route('/livro/<int:cod_livro>', methods=['GET'])
+def get_livro(cod_livro):
+    session = Session()
+    livro = session.query(Livro).filter_by(cod_livro=cod_livro).first()
+    if livro:
+        return jsonify({
+            'cod_livro': livro.cod_livro,
+            'titulo': livro.titulo,
+            'genero': livro.genero
+        })
+    return jsonify({'message': 'Livro não encontrado'}), 404
+
 @app.route('/livro', methods=['POST'])
 def add_livro():
     session = Session()
     data = request.get_json()
+    
     novo_livro = Livro(
         cod_livro=data['cod_livro'],
-        genero=data['genero'],
-        titulo=data['titulo']
+        titulo=data['titulo'],
+        genero=data['genero']
     )
-    session.add(novo_livro)
-    session.commit()
-    return jsonify({'message': 'Livro criado com sucesso!'}), 201
+    
+    try:
+        session.add(novo_livro)
+        session.commit()
+        
+        # Adicionar autores
+        if 'autores' in data:
+            for cod_autor in data['autores']:
+                escreve = Escreve(
+                    cod_autor=cod_autor,
+                    cod_livro=novo_livro.cod_livro,
+                    cod_pessoa=session.query(Autor).filter_by(cod_autor=cod_autor).first().cod_pessoa
+                )
+                session.add(escreve)
+        
+        # Adicionar revisores
+        if 'revisores' in data:
+            for cod_revisor in data['revisores']:
+                revisa = Revisa(
+                    cod_revisor=cod_revisor,
+                    cod_livro=novo_livro.cod_livro,
+                    cod_pessoa=session.query(Revisor).filter_by(cod_revisor=cod_revisor).first().cod_pessoa,
+                    status_revisao='Em andamento'
+                )
+                session.add(revisa)
+        
+        session.commit()
+        return jsonify({'message': 'Livro adicionado com sucesso!'}), 201
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        session.close()
 
-# READ (Ler Livro)
-@app.route('/livro/<int:id>', methods=['GET'])
-def get_livro(id):
-    session = Session()
-    livro = session.query(Livro).filter_by(cod_livro=id).first()
-    if livro:
-        return jsonify({
-            'cod_livro': livro.cod_livro,
-            'genero': livro.genero,
-            'titulo': livro.titulo
-        })
-    return jsonify({'message': 'Livro não encontrado'}), 404
-
-# UPDATE (Atualizar Livro)
-@app.route('/livro/<int:id>', methods=['PUT'])
-def update_livro(id):
+@app.route('/livro/<int:cod_livro>', methods=['PUT'])
+def update_livro(cod_livro):
     session = Session()
     data = request.get_json()
-    livro = session.query(Livro).filter_by(cod_livro=id).first()
+    livro = session.query(Livro).filter_by(cod_livro=cod_livro).first()
+    
     if livro:
-        livro.genero = data['genero']
-        livro.titulo = data['titulo']
-        session.commit()
-        return jsonify({'message': 'Livro atualizado com sucesso!'})
+        try:
+            livro.titulo = data['titulo']
+            livro.genero = data['genero']
+            
+            # Atualizar autores
+            session.query(Escreve).filter_by(cod_livro=cod_livro).delete()
+            if 'autores' in data:
+                for cod_autor in data['autores']:
+                    escreve = Escreve(
+                        cod_autor=cod_autor,
+                        cod_livro=cod_livro,
+                        cod_pessoa=session.query(Autor).filter_by(cod_autor=cod_autor).first().cod_pessoa
+                    )
+                    session.add(escreve)
+            
+            # Atualizar revisores
+            session.query(Revisa).filter_by(cod_livro=cod_livro).delete()
+            if 'revisores' in data:
+                for cod_revisor in data['revisores']:
+                    revisa = Revisa(
+                        cod_revisor=cod_revisor,
+                        cod_livro=cod_livro,
+                        cod_pessoa=session.query(Revisor).filter_by(cod_revisor=cod_revisor).first().cod_pessoa,
+                        status_revisao='Em andamento'
+                    )
+                    session.add(revisa)
+            
+            session.commit()
+            return jsonify({'message': 'Livro atualizado com sucesso!'})
+        except Exception as e:
+            session.rollback()
+            return jsonify({'error': str(e)}), 400
+        finally:
+            session.close()
+    
+    session.close()
     return jsonify({'message': 'Livro não encontrado'}), 404
 
-# DELETE (Deletar Livro)
-@app.route('/livro/<int:id>', methods=['DELETE'])
-def delete_livro(id):
+@app.route('/livro/<int:cod_livro>', methods=['DELETE'])
+def delete_livro(cod_livro):
     session = Session()
-    livro = session.query(Livro).filter_by(cod_livro=id).first()
+    livro = session.query(Livro).filter_by(cod_livro=cod_livro).first()
+    
     if livro:
-        session.delete(livro)
-        session.commit()
-        return jsonify({'message': 'Livro deletado com sucesso!'})
+        try:
+            # Remover relacionamentos primeiro
+            session.query(Escreve).filter_by(cod_livro=cod_livro).delete()
+            session.query(Revisa).filter_by(cod_livro=cod_livro).delete()
+            session.delete(livro)
+            session.commit()
+            return jsonify({'message': 'Livro excluído com sucesso!'})
+        except Exception as e:
+            session.rollback()
+            return jsonify({'error': str(e)}), 400
+        finally:
+            session.close()
+    
+    session.close()
     return jsonify({'message': 'Livro não encontrado'}), 404
 
+@app.route('/livro/<int:cod_livro>/autores', methods=['GET'])
+def get_autores_livro(cod_livro):
+    session = Session()
+    autores = session.query(Autor).join(Escreve).filter(Escreve.cod_livro == cod_livro).all()
+    
+    result = []
+    for autor in autores:
+        pessoa = session.query(Pessoa).filter_by(cod_pessoa=autor.cod_pessoa).first()
+        result.append({
+            'cod_autor': autor.cod_autor,
+            'cod_pessoa': autor.cod_pessoa,
+            'nome': pessoa.nome if pessoa else 'N/A'
+        })
+    
+    session.close()
+    return jsonify(result)
+
+@app.route('/livro/<int:cod_livro>/revisores', methods=['GET'])
+def get_revisores_livro(cod_livro):
+    session = Session()
+    revisores = session.query(Revisor).join(Revisa).filter(Revisa.cod_livro == cod_livro).all()
+    
+    result = []
+    for revisor in revisores:
+        pessoa = session.query(Pessoa).filter_by(cod_pessoa=revisor.cod_pessoa).first()
+        result.append({
+            'cod_revisor': revisor.cod_revisor,
+            'cod_pessoa': revisor.cod_pessoa,
+            'nome': pessoa.nome if pessoa else 'N/A',
+            'especialidade': revisor.especialidade
+        })
+    
+    session.close()
+    return jsonify(result)
 
 #############################
 # ESCREVE
@@ -373,44 +540,12 @@ def delete_autor(cod_autor, cod_pessoa):
 @app.route('/autor', methods=['GET'])
 def get_autores():
     session = Session()
-    autores = session.query(Autor).all()
+    autores = session.query(Autor).order_by(Autor.cod_autor).all()
     session.close()
     return jsonify([{
         'cod_autor': autor.cod_autor,
         'cod_pessoa': autor.cod_pessoa
     } for autor in autores])
-
-#############################
-# REVISOR
-#############################
-
-@app.route('/revisor', methods=['GET'])
-def get_revisores():
-    session = Session()
-    revisores = session.query(Revisor).all()
-    session.close()
-    return jsonify([{
-        'cod_revisor': revisor.cod_revisor,
-        'cod_pessoa': revisor.cod_pessoa,
-        'especialidade': revisor.especialidade,
-        'salario': float(revisor.salario),
-        'data_contrato': revisor.data_contrato.isoformat()
-    } for revisor in revisores])
-
-#############################
-# LIVRO
-#############################
-
-@app.route('/livro', methods=['GET'])
-def get_livros():
-    session = Session()
-    livros = session.query(Livro).all()
-    session.close()
-    return jsonify([{
-        'cod_livro': livro.cod_livro,
-        'genero': livro.genero,
-        'titulo': livro.titulo
-    } for livro in livros])
 
 if __name__ == '__main__':
     app.run(debug=True)

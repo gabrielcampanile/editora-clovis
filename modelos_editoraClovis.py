@@ -3,9 +3,14 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+from config import Config
+import os
+from dotenv import load_dotenv
 
-# Configuração do Banco de Dados MariaDB
-engine = create_engine("mysql+pymysql://seu_usuario:sua_senha@seu_host:porta/seu_banco")
+load_dotenv()
+
+# Configuração do Banco de Dados
+engine = create_engine(Config.SQLALCHEMY_DATABASE_URI)
 
 Session = sessionmaker(bind=engine)
 session = Session()
@@ -79,3 +84,6 @@ class Escreve(Base):
 
 # Criando as tabelas no banco de dados
 Base.metadata.create_all(engine)
+
+if __name__ == '__main__':
+    Base.metadata.create_all(engine)

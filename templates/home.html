@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center mb-5">
+    <h1>Bem-vindo à Editora Clóvis de Barros</h1>
+    <p class="lead">Sistema de Gerenciamento Editorial</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="card home-card h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title">Pessoas</h5>
+                <p class="card-text">Gerencie o cadastro de pessoas no sistema.</p>
+                <a href="/pessoas" class="btn btn-primary">Acessar</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 col-lg-3">
+        <div class="card home-card h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title">Autores</h5>
+                <p class="card-text">Gerencie os autores e suas obras.</p>
+                <a href="/autores" class="btn btn-primary">Acessar</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 col-lg-3">
+        <div class="card home-card h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title">Revisores</h5>
+                <p class="card-text">Gerencie a equipe de revisores.</p>
+                <a href="/revisores" class="btn btn-primary">Acessar</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 col-lg-3">
+        <div class="card home-card h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title">Livros</h5>
+                <p class="card-text">Gerencie o catálogo de livros.</p>
+                <a href="/livros" class="btn btn-primary">Acessar</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-5 p-5 bg-light rounded">
+    <h2>Sobre a Editora</h2>
+    <p>A Editora Clóvis de Barro é uma editora comprometida com a qualidade e excelência em publicações. 
+       Nosso sistema de gerenciamento permite controlar todo o processo editorial, desde o cadastro de autores 
+       até a revisão final dos livros.</p>
+</div>
+{% endblock %} 
